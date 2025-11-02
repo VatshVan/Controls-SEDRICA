@@ -3,7 +3,7 @@ import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Pose, Point, Quaternion
-from std_msgs.msg import Float32  # <-- Import steering message
+from std_msgs.msg import Float32
 import numpy as np
 import math
 
@@ -31,34 +31,26 @@ class MockOdomPublisher(Node):
         super().__init__('mock_odom_publisher')
         self.publisher_ = self.create_publisher(Odometry, '/odom', 10)
         
-        # --- This is new ---
-        # Create a subscriber to listen to the steering commands from alpp_node
         self.steering_sub_ = self.create_subscription(
             Float32,
             '/autodrive/f1tenth_1/steering_command',
             self.steering_callback,
             10)
-        # --- End new ---
 
-        self.timer_period = 0.05  # 20 Hz
+        self.timer_period = 0.05  # 20 H
         self.timer = self.create_timer(self.timer_period, self.publish_odom)
         
-        # --- Updated State Variables ---
         self.x = 0.0
         self.y = 0.0
         self.theta = 0.0  # Robot's current angle (yaw)
         self.speed = 4.0  # Robot's speed (m/s)
         self.steering_angle = 0.0  # Current steering angle
         self.wheelbase = 0.33  # Wheelbase of the "car" (must match alpp_node)
-        # --- End updated ---
         
         self.get_logger().info('Mock Odometry Publisher (CLOSED LOOP) has started.')
 
     def steering_callback(self, msg):
-        # --- This is new ---
-        # When we receive a steering command, store it
         self.steering_angle = msg.data
-        # --- End new ---
 
     def publish_odom(self):
         msg = Odometry()
@@ -66,15 +58,11 @@ class MockOdomPublisher(Node):
         msg.header.frame_id = 'odom'
         msg.child_frame_id = 'base_link'
 
-        # --- This is new: Simple car physics ---
-        # Calculate the change in angle (yaw)
         delta_theta = (self.speed * math.tan(self.steering_angle)) / self.wheelbase * self.timer_period
         
-        # Update the robot's state
         self.theta += delta_theta
         self.x += self.speed * math.cos(self.theta) * self.timer_period
         self.y += self.speed * math.sin(self.theta) * self.timer_period
-        # --- End new physics ---
 
         # Set the position
         msg.pose.pose.position.x = self.x
